@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, MapPin, CreditCard, Banknote, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Banknote, CheckCircle2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { useApp } from './AppContext';
 import { Input } from './ui/input';
@@ -17,7 +17,6 @@ interface CheckoutScreenProps {
 export function CheckoutScreen({ businessId, productId, onBack, onComplete }: CheckoutScreenProps) {
   const { businesses, createOrder, currentUser } = useApp();
   const [quantity, setQuantity] = useState(1);
-  const [paymentMethod, setPaymentMethod] = useState<'digital' | 'cash' | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showMap, setShowMap] = useState(false);
 
@@ -30,29 +29,14 @@ export function CheckoutScreen({ businessId, productId, onBack, onComplete }: Ch
 
   const totalPrice = product.price * quantity;
 
-  const handleDigitalPayment = (url: string) => {
-    if (url) {
-        window.location.href = url;
-    }
-  };
-
   const handlePurchase = () => {
-    if (!paymentMethod) return;
-
-    // If payment is digital, we don't create the order here.
-    // The redirection will handle the payment, and a webhook or manual confirmation would create the order.
-    if (paymentMethod === 'digital') {
-      alert('Por favor, selecciona un método de pago digital para continuar.');
-      return;
-    }
-
     createOrder({
       productId: product.id,
       businessId: business.id,
       clientId: currentUser?.id || '',
       quantity,
       totalPrice,
-      paymentMethod,
+      paymentMethod: 'cash',
     });
 
     setShowSuccess(true);
@@ -72,12 +56,12 @@ export function CheckoutScreen({ businessId, productId, onBack, onComplete }: Ch
           <h2>Ubicación del negocio</h2>
         </div>
 
-        {/* Map - Now using live Google Map */}
+        {/* Map */}
         <div className="flex-1 relative">
           <MapComponent
             markers={[{
               id: business.id,
-              lat: 40.7589, // Business coordinates (simulated)
+              lat: 40.7589, // Simulated coordinates
               lng: -73.9851,
               name: business.name,
               type: 'business',
@@ -89,7 +73,6 @@ export function CheckoutScreen({ businessId, productId, onBack, onComplete }: Ch
             mapType="checkout"
           />
 
-          {/* Info Card */}
           <div className="absolute bottom-8 left-6 right-6 bg-white rounded-2xl shadow-xl p-6">
             <div className="flex items-start space-x-4 mb-4">
               <div className="text-4xl">{business.logo}</div>
@@ -212,76 +195,19 @@ export function CheckoutScreen({ businessId, productId, onBack, onComplete }: Ch
           </div>
         </div>
 
-        {/* Payment Methods */}
+        {/* Payment Method */}
         <div className="mb-6">
           <Label className="mb-3 block">Método de pago</Label>
           <div className="space-y-3">
-            <button
-              onClick={() => setPaymentMethod('digital')}
-              className={`w-full p-4 border-2 rounded-xl flex items-center space-x-4 transition-colors ${
-                paymentMethod === 'digital'
-                  ? 'border-[#007AFF] bg-[#007AFF]/5'
-                  : 'border-[#E5E5E5] hover:border-[#007AFF]/50'
-              }`}
-            >
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                paymentMethod === 'digital' ? 'bg-[#007AFF]' : 'bg-[#F5F5F5]'
-              }`}>
-                <CreditCard className={`w-6 h-6 ${
-                  paymentMethod === 'digital' ? 'text-white' : 'text-[#666]'
-                }`} />
-              </div>
-              <div className="flex-1 text-left">
-                <div>Pago digital</div>
-                <div className="text-sm text-[#666]">Nequi, Bancolombia o transferencia</div>
-              </div>
-            </button>
-
-            {/* Digital Payment Options - Show when digital is selected */}
-            {paymentMethod === 'digital' && (
-                <div className="ml-4 space-y-2 border-l-2 border-[#007AFF] pl-4">
-                    {business.nequiLink && (
-                        <Button
-                            onClick={() => handleDigitalPayment(business.nequiLink)}
-                            className="w-full justify-center bg-[#FF006B] hover:bg-[#E0005E] text-white"
-                        >
-                            Pagar con Nequi
-                        </Button>
-                    )}
-                    {business.bancoLink && (
-                        <Button
-                            onClick={() => handleDigitalPayment(business.bancoLink)}
-                            className="w-full justify-center bg-[#FDDA24] hover:bg-[#E4C320] text-[#333]"
-                        >
-                            Pagar con Bancolombia
-                        </Button>
-                    )}
-                    {!business.nequiLink && !business.bancoLink && (
-                        <p className="text-sm text-center text-gray-500 p-2">El emprendedor no tiene enlaces de pago digital configurados.</p>
-                    )}
-                </div>
-            )}
-
-            <button
-              onClick={() => setPaymentMethod('cash')}
-              className={`w-full p-4 border-2 rounded-xl flex items-center space-x-4 transition-colors ${
-                paymentMethod === 'cash'
-                  ? 'border-[#007AFF] bg-[#007AFF]/5'
-                  : 'border-[#E5E5E5] hover:border-[#007AFF]/50'
-              }`}
-            >
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                paymentMethod === 'cash' ? 'bg-[#007AFF]' : 'bg-[#F5F5F5]'
-              }`}>
-                <Banknote className={`w-6 h-6 ${
-                  paymentMethod === 'cash' ? 'text-white' : 'text-[#666]'
-                }`} />
+            <div className="w-full p-4 border-2 rounded-xl flex items-center space-x-4 border-[#007AFF] bg-[#007AFF]/5">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center bg-[#007AFF]">
+                <Banknote className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1 text-left">
                 <div>Efectivo</div>
                 <div className="text-sm text-[#666]">Pagar al recibir</div>
               </div>
-            </button>
+            </div>
           </div>
         </div>
 
@@ -303,16 +229,13 @@ export function CheckoutScreen({ businessId, productId, onBack, onComplete }: Ch
           </div>
         </div>
 
-        {/* Confirm Button - Only for Cash payments */}
-        {paymentMethod !== 'digital' && (
-          <Button
-            onClick={handlePurchase}
-            disabled={!paymentMethod}
-            className="w-full bg-[#007AFF] hover:bg-[#0051D5] h-12 disabled:opacity-50"
-          >
-            Confirmar compra
-          </Button>
-        )}
+        {/* Confirm Button */}
+        <Button
+          onClick={handlePurchase}
+          className="w-full bg-[#007AFF] hover:bg-[#0051D5] h-12"
+        >
+          Confirmar compra en efectivo
+        </Button>
 
         <p className="text-center text-sm text-[#666] mt-4">
           Al confirmar, podrás ver la ubicación exacta del negocio en el mapa

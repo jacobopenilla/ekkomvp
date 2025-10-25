@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Checkbox } from './ui/checkbox';
 import { ArrowLeft } from 'lucide-react';
 import { useApp } from './AppContext';
 
@@ -15,10 +16,14 @@ export function AuthScreen({ mode, onBack }: AuthScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [agreed, setAgreed] = useState(false);
   const [showRoleSelection, setShowRoleSelection] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode === 'register' && !agreed) {
+      return;
+    }
     setShowRoleSelection(true);
   };
 
@@ -33,7 +38,7 @@ export function AuthScreen({ mode, onBack }: AuthScreenProps) {
   if (showRoleSelection) {
     return (
       <div className="min-h-screen bg-white flex flex-col p-6">
-        <button onClick={onBack} className="self-start mb-8">
+        <button onClick={() => setShowRoleSelection(false)} className="self-start mb-8">
           <ArrowLeft className="w-6 h-6" />
         </button>
 
@@ -126,8 +131,21 @@ export function AuthScreen({ mode, onBack }: AuthScreenProps) {
               className="h-12"
             />
           </div>
+          
+          {mode === 'register' && (
+            <div className="flex items-center space-x-3 pt-2">
+              <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} />
+              <Label htmlFor="terms" className="text-sm text-gray-600 font-normal">
+                Acepto los <a href="https://example.com/terminos" target="_blank" rel="noopener noreferrer" className="text-[#007AFF] hover:underline">Términos y Condiciones</a>
+              </Label>
+            </div>
+          )}
 
-          <Button type="submit" className="w-full bg-[#007AFF] hover:bg-[#0051D5] h-12">
+          <Button 
+            type="submit" 
+            className="w-full bg-[#007AFF] hover:bg-[#0051D5] h-12 disabled:bg-gray-300"
+            disabled={mode === 'register' && !agreed}
+          >
             {mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
           </Button>
         </form>
