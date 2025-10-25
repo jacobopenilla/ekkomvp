@@ -1,11 +1,13 @@
-import React from 'react';
-import { ArrowLeft, User, ShoppingBag, Package, LogOut, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, User, ShoppingBag, Package, LogOut, RefreshCw, Save } from 'lucide-react';
 import { Button } from './ui/button';
 import { useApp } from './AppContext';
 import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
 import { Badge } from './ui/badge';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { Input } from './ui/input';
+import { updateEntrepreneurPaymentLinks } from '../lib/firebase/firestore';
 
 interface ProfileScreenProps {
   onBack: () => void;
@@ -13,11 +15,42 @@ interface ProfileScreenProps {
 }
 
 export function ProfileScreen({ onBack, onLogout }: ProfileScreenProps) {
-  const { currentUser, logout, switchRole, businesses, orders } = useApp();
+  const { currentUser, logout, switchRole, businesses, orders, setBusinesses } = useApp();
+
+  const userBusiness = businesses.find(b => b.entrepreneurId === currentUser.id);
+
+  const [nequiLink, setNequiLink] = useState(userBusiness?.nequiLink || '');
+  const [bancoLink, setBancoLink] = useState(userBusiness?.bancoLink || '');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (userBusiness) {
+      setNequiLink(userBusiness.nequiLink || '');
+      setBancoLink(userBusiness.bancoLink || '');
+    }
+  }, [userBusiness]);
 
   if (!currentUser) return null;
 
-  const userBusiness = businesses.find(b => b.entrepreneurId === currentUser.id);
+  const handleSaveChanges = async () => {
+    if (!userBusiness) return;
+
+    setIsSaving(true);
+    try {
+      await updateEntrepreneurPaymentLinks(userBusiness.id, nequiLink, bancoLink);
+      const updatedBusinesses = businesses.map(b => 
+        b.id === userBusiness.id ? { ...b, nequiLink, bancoLink } : b
+      );
+      setBusinesses(updatedBusinesses);
+      alert('¡Enlaces de pago guardados!');
+    } catch (error) {
+      console.error(error);
+      alert('Error al guardar los enlaces. Inténtalo de nuevo.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const userOrders = orders.filter(o => 
     currentUser.role === 'client' 
       ? o.clientId === currentUser.id 
@@ -74,53 +107,89 @@ export function ProfileScreen({ onBack, onLogout }: ProfileScreenProps) {
 
           {/* Orders / Products Section */}
           <div className="mb-6">
-            <div className="flex items-center space-x-2 mb-4">
-              {currentUser.role === 'client' ? (
-                <>
-                  <ShoppingBag className="w-5 h-5 text-[#007AFF]" />
-                  <h3>Mis compras</h3>
-                </>
-              ) : (
-                <>
-                  <Package className="w-5 h-5 text-[#007AFF]" />
-                  <h3>Mis productos</h3>
-                </>
-              )}
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                    {currentUser.role === 'client' ? (
+                        <>
+                        <ShoppingBag className="w-5 h-5 text-[#007AFF]" />
+                        <h3>Mis compras</h3>
+                        </>
+                    ) : (
+                        <>
+                        <Package className="w-5 h-5 text-[#007AFF]" />
+                        <h3>Mis productos y pagos</h3>
+                        </>
+                    )}
+                </div>
             </div>
 
-            {currentUser.role === 'entrepreneur' && userBusiness ? (
-              <div className="space-y-3">
-                {userBusiness.products.length > 0 ? (
-                  userBusiness.products.map(product => (
-                    <div key={product.id} className="border border-[#E5E5E5] rounded-xl p-4 flex items-start space-x-4">
-                      <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
-                        <ImageWithFallback
-                          src={product.image}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="mb-1">{product.name}</h4>
-                        <p className="text-sm text-[#666] mb-2">{product.description}</p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[#007AFF]">${product.price.toLocaleString('es-CO')}</span>
-                          <Badge variant={product.quantity > 0 ? 'default' : 'secondary'}>
-                            {product.quantity} disponibles
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-12 text-[#666]">
-                    <Package className="w-12 h-12 mx-auto mb-3 text-[#CCC]" />
-                    <p>No tienes productos publicados</p>
-                    <p className="text-sm mt-1">Haz clic en "Ofrecer producto" para empezar</p>
+            {currentUser.role === 'entrepreneur' && userBusiness && (
+              <div className="space-y-6">
+                {/* Payment Links Form */}
+                <div className="space-y-4 p-4 border rounded-lg">
+                  <h4 className="font-medium">Enlaces de Pago</h4>
+                  <div>
+                    <label htmlFor="nequiLink" className="block text-sm font-medium text-gray-700 mb-1">Nequi</label>
+                    <Input 
+                      id="nequiLink"
+                      type="text"
+                      value={nequiLink}
+                      onChange={(e) => setNequiLink(e.target.value)}
+                      placeholder="Tu número o enlace de Nequi"
+                    />
                   </div>
-                )}
+                  <div>
+                    <label htmlFor="bancoLink" className="block text-sm font-medium text-gray-700 mb-1">Bancolombia</label>
+                    <Input 
+                      id="bancoLink"
+                      type="text"
+                      value={bancoLink}
+                      onChange={(e) => setBancoLink(e.target.value)}
+                      placeholder="Tu cuenta o enlace de Bancolombia"
+                    />
+                  </div>
+                   <Button onClick={handleSaveChanges} disabled={isSaving} className="w-full">
+                    <Save className="w-4 h-4 mr-2" />
+                    {isSaving ? 'Guardando...' : 'Guardar enlaces de pago'}
+                  </Button>
+                </div>
+
+                <Separator />
+
+                {/* Existing Products List */}
+                <div>
+                    {userBusiness.products.length > 0 ? (
+                    userBusiness.products.map(product => (
+                        <div key={product.id} className="border border-[#E5E5E5] rounded-xl p-4 flex items-start space-x-4 mb-3">
+                        <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
+                            <ImageWithFallback
+                            src={product.image}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                            />
+                        </div>
+                        <div className="flex-1">
+                            <h4 className="mb-1">{product.name}</h4>
+                            <p className="text-sm text-[#666] mb-2">{product.description}</p>
+                            <div className="flex items-center justify-between">
+                            <span className="text-[#007AFF]">${product.price.toLocaleString('es-CO')}</span>
+                            <Badge variant={product.quantity > 0 ? 'default' : 'secondary'}>
+                                {product.quantity} disponibles
+                            </Badge>
+                            </div>
+                        </div>
+                        </div>
+                    ))
+                    ) : (
+                    <div className="text-center py-12 text-[#666]">
+                        <Package className="w-12 h-12 mx-auto mb-3 text-[#CCC]" />
+                        <p>No tienes productos publicados</p>
+                        <p className="text-sm mt-1">Haz clic en "Ofrecer producto" para empezar</p>
+                    </div>
+                    )}
+                </div>
               </div>
-            ) : null}
+            )}
 
             {currentUser.role === 'client' && (
               <div className="space-y-3">

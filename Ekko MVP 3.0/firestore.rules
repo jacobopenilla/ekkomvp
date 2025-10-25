@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection rules
+    match /users/{userId} {
+      // Each user can only read and update their own profile.
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      // A user should be able to create their own document.
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Entrepreneurs collection rules
+    match /entrepreneurs/{entrepreneurId} {
+      // Any authenticated user can read entrepreneur profiles.
+      allow read: if request.auth != null;
+
+      // Only the owner entrepreneur can write/update their document.
+      // We are assuming the document ID is the user's UID.
+      allow write: if request.auth != null && request.auth.uid == entrepreneurId;
+    }
+
+    // Orders collection rules
+    match /orders/{orderId} {
+      // Only the user who placed the order or the entrepreneur can read it.
+      // We assume userId and entrepreneurId fields store user UIDs.
+      allow read: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.entrepreneurId);
+
+      // A user can create an order.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+
+      // A user or entrepreneur can update an order (e.g., to change status).
+      allow update: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.entrepreneurId);
+
+      // For now, prevent orders from being deleted.
+      allow delete: if false;
+    }
+  }
+}

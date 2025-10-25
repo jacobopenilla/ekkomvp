@@ -30,8 +30,21 @@ export function CheckoutScreen({ businessId, productId, onBack, onComplete }: Ch
 
   const totalPrice = product.price * quantity;
 
+  const handleDigitalPayment = (url: string) => {
+    if (url) {
+        window.location.href = url;
+    }
+  };
+
   const handlePurchase = () => {
     if (!paymentMethod) return;
+
+    // If payment is digital, we don't create the order here.
+    // The redirection will handle the payment, and a webhook or manual confirmation would create the order.
+    if (paymentMethod === 'digital') {
+      alert('Por favor, selecciona un método de pago digital para continuar.');
+      return;
+    }
 
     createOrder({
       productId: product.id,
@@ -226,29 +239,27 @@ export function CheckoutScreen({ businessId, productId, onBack, onComplete }: Ch
 
             {/* Digital Payment Options - Show when digital is selected */}
             {paymentMethod === 'digital' && (
-              <div className="ml-4 space-y-2 border-l-2 border-[#007AFF] pl-4">
-                <button
-                  onClick={() => {
-                    // Redirect to Nequi app (in production this would open the Nequi app)
-                    alert('Redirigiendo a Nequi...\n\nEn producción, esto abrirá la app de Nequi para completar el pago.');
-                  }}
-                  className="w-full p-3 bg-[#FF006B] hover:bg-[#E0005E] text-white rounded-xl flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <span>💳</span>
-                  <span>Pagar con Nequi</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    // Redirect to Bancolombia app (in production this would open the Bancolombia app)
-                    alert('Redirigiendo a Bancolombia...\n\nEn producción, esto abrirá la app de Bancolombia para completar el pago.');
-                  }}
-                  className="w-full p-3 bg-[#FDDA24] hover:bg-[#E4C320] text-[#333] rounded-xl flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <span>🏦</span>
-                  <span>Pagar con Bancolombia</span>
-                </button>
-              </div>
+                <div className="ml-4 space-y-2 border-l-2 border-[#007AFF] pl-4">
+                    {business.nequiLink && (
+                        <Button
+                            onClick={() => handleDigitalPayment(business.nequiLink)}
+                            className="w-full justify-center bg-[#FF006B] hover:bg-[#E0005E] text-white"
+                        >
+                            Pagar con Nequi
+                        </Button>
+                    )}
+                    {business.bancoLink && (
+                        <Button
+                            onClick={() => handleDigitalPayment(business.bancoLink)}
+                            className="w-full justify-center bg-[#FDDA24] hover:bg-[#E4C320] text-[#333]"
+                        >
+                            Pagar con Bancolombia
+                        </Button>
+                    )}
+                    {!business.nequiLink && !business.bancoLink && (
+                        <p className="text-sm text-center text-gray-500 p-2">El emprendedor no tiene enlaces de pago digital configurados.</p>
+                    )}
+                </div>
             )}
 
             <button
@@ -292,14 +303,16 @@ export function CheckoutScreen({ businessId, productId, onBack, onComplete }: Ch
           </div>
         </div>
 
-        {/* Confirm Button */}
-        <Button
-          onClick={handlePurchase}
-          disabled={!paymentMethod}
-          className="w-full bg-[#007AFF] hover:bg-[#0051D5] h-12 disabled:opacity-50"
-        >
-          Confirmar compra
-        </Button>
+        {/* Confirm Button - Only for Cash payments */}
+        {paymentMethod !== 'digital' && (
+          <Button
+            onClick={handlePurchase}
+            disabled={!paymentMethod}
+            className="w-full bg-[#007AFF] hover:bg-[#0051D5] h-12 disabled:opacity-50"
+          >
+            Confirmar compra
+          </Button>
+        )}
 
         <p className="text-center text-sm text-[#666] mt-4">
           Al confirmar, podrás ver la ubicación exacta del negocio en el mapa
